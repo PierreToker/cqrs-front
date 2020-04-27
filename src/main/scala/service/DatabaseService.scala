@@ -1,12 +1,13 @@
 package service
 
-import actor.Order
+import actor.{Order, OrderStatus}
 import org.bson.codecs.configuration.CodecRegistries.{fromProviders, fromRegistries}
 import org.bson.codecs.configuration.CodecRegistry
 import org.mongodb.scala._
 import org.mongodb.scala.bson.codecs.DEFAULT_CODEC_REGISTRY
 import org.mongodb.scala.bson.codecs.Macros._
 import org.mongodb.scala.model.Filters._
+import service.DatabaseService.codecRegistry
 import util.Helpers._
 
 object DatabaseService {
@@ -21,7 +22,6 @@ object DatabaseService {
    * @return all orders
    */
   def getAllTransfers: Seq[Order] = {
-    print("getall")
     collection.find().results()
   }
 
@@ -52,5 +52,17 @@ object DatabaseService {
    */
   def getTransfersByStatus(status: String): Seq[Order] = {
     collection.find(equal("status", status)).results()
+  }
+
+  /**
+   * Return orderStatus
+   * @param status Status wished
+   * @return orderStatus object
+   */
+  def getOrderStatus(status: Int): OrderStatus = {
+    val codecRegistry: CodecRegistry = fromRegistries(fromProviders(classOf[OrderStatus]), DEFAULT_CODEC_REGISTRY)
+    val database: MongoDatabase = mongoClient.getDatabase("orders-db").withCodecRegistry(codecRegistry)
+    val collection: MongoCollection[OrderStatus] = database.getCollection("orderStatus")
+    collection.find(equal("id", status)).headResult()
   }
 }

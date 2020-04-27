@@ -1,5 +1,6 @@
 *.class
 *.log
+.travis.yml
 
 # sbt specific
 .cache/

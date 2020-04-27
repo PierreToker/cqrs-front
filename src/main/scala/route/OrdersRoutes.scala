@@ -12,7 +12,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 import util.JsonSupport
 
-import scala.concurrent.Future
+import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
 
 trait OrdersRoutes extends JsonSupport {
@@ -31,9 +31,6 @@ trait OrdersRoutes extends JsonSupport {
         get {
           val orders: Future[Orders] = (orderActor ? GetOrders).mapTo[Orders]
           complete(orders)
-          //onComplete((orderActor ? GetOrders).mapTo[Orders]) { todos =>
-          //  complete(todos)
-          //}
         }
       }
     }

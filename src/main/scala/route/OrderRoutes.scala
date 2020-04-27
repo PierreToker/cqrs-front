@@ -13,11 +13,10 @@ import akka.http.scaladsl.server.directives.RouteDirectives.complete
 import akka.pattern.ask
 import akka.util.Timeout
 import actor.OrderActor._
-import actor.{Order, OrderStatus, Orders}
-import akka.actor.Status.Success
+import actor.Order
 import service.DatabaseService
 import util.JsonSupport
-
+import scala.util.{Success => ScalaSuccess, Failure => ScalaFailure}
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
@@ -31,167 +30,82 @@ trait OrderRoutes extends JsonSupport {
 
   private implicit lazy val timeout: Timeout = Timeout(5, SECONDS)
 
-  /*
   lazy val transferRoutes: Route =
-    pathPrefix("orders") {
-      concat(
-        pathEnd {
-          concat(
-            get {
-              val orders: Future[Orders] = (orderActor ? GetOrders).mapTo[Orders]
-              complete(orders)
-            },
-            post {
-              entity(as[Order]) {
-                createdOrder =>
-                  val order = Order(DatabaseService.getFreeId, LocalDateTime.now().toString, createdOrder.destinationAddress, createdOrder.customerName, "confirmed")
-                  val orderCreated: Future[ActionPerformed] = (orderActor ? OrderCreated(order)).mapTo[ActionPerformed]
-                  onSuccess(orderCreated) { performed =>
-                    log.info("Created order [{}]: {}", order.id, performed.description)
-                    complete((StatusCodes.Created, performed))
-                  }
-              }
-            }
-          )
-        }
-      )
-    }
     pathPrefix("order") {
       concat(
         pathEnd {
           concat(
-            get {
-              val orders: Future[Orders] = (orderActor ? GetOrders).mapTo[Orders]
-              complete(orders)
-            },
             post {
-                entity(as[Order]) {
-                  createdOrder =>
-                    val order = Order(DatabaseService.getFreeId, LocalDateTime.now().toString, createdOrder.destinationAddress, createdOrder.customerName, "confirmed")
-                    val orderCreated: Future[ActionPerformed] = (orderActor ? OrderCreated(order)).mapTo[ActionPerformed]
+              entity(as[Order]) {
+                createdOrder =>
+                  val order = Order(DatabaseService.getFreeId, LocalDateTime.now().toString, createdOrder.destinationAddress, createdOrder.customerName, "0")
+                  val orderCreated: Future[ActionPerformed] = (orderActor ? OrderCreated(order)).mapTo[ActionPerformed]
                   onSuccess(orderCreated) { performed =>
-                    log.info("Created order [{}]: {}", order.id, performed.description)
+                    log.info("Order created [{}]: {}", order.id, performed.description)
                     complete((StatusCodes.Created, performed))
                   }
-                }
+              }
             }
           )
         },
         path(Segment) { id =>
           concat(
             get {
-              val order: Future[Order] = (orderActor ? GetOrder(id.toInt)).mapTo[Order]
-              rejectEmptyResponse {
-                complete(order)
+              onComplete((orderActor ? GetOrder(id.toInt)).mapTo[Order]) {
+                case ScalaSuccess(value) => {
+                  log.info("Order n° {} founded.", value.id)
+                  complete(StatusCodes.OK, value)
+                }
+                case ScalaFailure(value) => {
+                  log.info("Order n° {} wasn't founded.", id)
+                  complete(StatusCodes.NotFound)
+                }
               }
             },
             delete {
-              val userDeleted: Future[ActionPerformed] =
-                (orderActor ? OrderDeleted(id.toInt)).mapTo[ActionPerformed]
-              onSuccess(userDeleted) { performed =>
-                log.info("Deleted user [{}]: {}", id, performed.description)
-                complete((StatusCodes.OK, performed))
+              onComplete((orderActor ? GetOrder(id.toInt)).mapTo[Order]) {
+                case ScalaSuccess(value) => {
+                  val orderFounded: Future[ActionPerformed] = (orderActor ? OrderDeleted(id.toInt)).mapTo[ActionPerformed]
+                  onSuccess(orderFounded) { performed =>
+                    log.info("Order n° {} deleted : {}", value.id, performed.description)
+                    complete(StatusCodes.OK, performed)
+                  }
+                }
+                case ScalaFailure(value) => {
+                  log.info("Order n° {} wasn't founded. Operation aborted", id)
+                  complete(StatusCodes.NotFound)
+                }
               }
             },
-            post {
+            put {
               entity(as[Order]) {
-                transfer => val orderStatusUpdated: Future[ActionPerformed] = (orderActor ? OrderSetToPrepared(transfer)).mapTo[ActionPerformed]
+                orderInput =>
+                  val orderStatusUpdated: Future[ActionPerformed] = (orderActor ? OrderSetToPrepared(orderInput)).mapTo[ActionPerformed]
                   onSuccess(orderStatusUpdated) { performed =>
-                    log.info("Order status updated [{}]: {}", transfer.id, performed.description)
+                    log.info("Order status updated [{}]: {}", orderInput.id, performed.description)
                     complete((StatusCodes.Created, performed))
                   }
               }
             }
           )
         },
-        path(Segment / "status") { id =>
+        path(Segment / "forward") { id =>
           put {
-            entity(as[OrderStatus]) { status =>
-              val transferUpdated: Future[ActionPerformed] =
-                (orderActor ? UpdateTransferStatus(id.toInt, status)).mapTo[ActionPerformed]
-              onSuccess(transferUpdated) { performed =>
-                log.info("Updated transfer [{}]: {}", id, performed.description)
-                complete((StatusCodes.OK, performed))
+            onComplete((orderActor ? GetOrder(id.toInt)).mapTo[Order]) {
+              case ScalaSuccess(value) => {
+                val orderFounded: Future[ActionPerformed] = (orderActor ? OrderStatusUpdatedToNextStep(value)).mapTo[ActionPerformed]
+                onSuccess(orderFounded) { performed =>
+                  log.info("Order n° {} status updated : {}", id, performed.description)
+                  complete(StatusCodes.OK, performed)
+                }
+              }
+              case ScalaFailure(value) => {
+                log.info("Order n° {} wasn't founded. Operation aborted", id)
+                complete(StatusCodes.NotFound)
               }
             }
           }
         }
       )
     }
-
-*/
-
-  val transferRoutes: Route =
-
-    pathPrefix("order" / IntNumber) { id =>
-      pathEndOrSingleSlash {
-        get {
-          val order: Future[Order] = (orderActor ? GetOrder(id)).mapTo[Order]
-          rejectEmptyResponse {
-            complete(order)
-          }
-        }
-      }
-    }
 }
-
-/*
-      get {
-        pathPrefix("orders") {
-           /*
-            complete("OK")
-            val orders: Future[Orders] = (orderActor ? GetOrders).mapTo[Orders]
-            complete(orders)
-          }*/
-
-        path("order" / IntNumber) { id =>
-          val order: Future[Order] = (orderActor ? GetOrder(id)).mapTo[Order]
-          rejectEmptyResponse {
-            complete(order)
-          }
-        }
-
-      }
-
-}
-
-    pathPrefix("/") {
-      path("orders") {
-        get {
-          pathEnd {
-            complete("OK")
-            val orders: Future[Orders] = (orderActor ? GetOrders).mapTo[Orders]
-            complete(orders)
-          }
-        }
-      }
-      path("order" / IntNumber) { id =>
-        concat(
-          get {
-            val order: Future[Order] = (orderActor ? GetOrder(id)).mapTo[Order]
-            rejectEmptyResponse {
-              complete(order)
-            }
-          }
-        )
-      }
-      path("order") {
-        concat(
-          pathEnd {
-            post {
-              entity(as[Order]) {
-                createdOrder =>
-                  val order = Order(DatabaseService.getFreeId, LocalDateTime.now().toString, createdOrder.destinationAddress, createdOrder.customerName, "confirmed")
-                  val orderCreated: Future[ActionPerformed] = (orderActor ? OrderCreated(order)).mapTo[ActionPerformed]
-                  onSuccess(orderCreated) { performed =>
-                    log.info("Created order [{}]: {}", order.id, performed.description)
-                    complete((StatusCodes.Created, performed))
-                  }
-              }
-            }
-          }
-        )
-      }
-    }
-}
-*/

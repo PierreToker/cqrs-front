@@ -8,9 +8,9 @@ import spray.json.{DefaultJsonProtocol, RootJsonFormat}
 trait JsonSupport extends SprayJsonSupport {
   import DefaultJsonProtocol._
 
-  implicit val transferJsonFormat: RootJsonFormat[Order] = jsonFormat5(Order)
-  implicit val transfersJsonFormat: RootJsonFormat[Orders] = jsonFormat1(Orders)
-  implicit val transferStatusJsonFormat: RootJsonFormat[OrderStatus] = jsonFormat1(OrderStatus)
+  implicit val orderJsonFormat: RootJsonFormat[Order] = jsonFormat5(Order)
+  implicit val ordersJsonFormat: RootJsonFormat[Orders] = jsonFormat1(Orders)
+  //implicit val transferStatusJsonFormat: RootJsonFormat[OrderStatus] = jsonFormat1(OrderStatus)
 
   /*
   implicit val transferUpdateJsonFormat: RootJsonFormat[TransferUpdateEvent] = jsonFormat2(TransferUpdateEvent)
