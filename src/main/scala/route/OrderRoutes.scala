@@ -16,7 +16,8 @@ import actor.OrderActor._
 import actor.Order
 import service.DatabaseService
 import util.JsonSupport
-import scala.util.{Success => ScalaSuccess, Failure => ScalaFailure}
+
+import scala.util.{Failure => ScalaFailure, Success => ScalaSuccess}
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
@@ -65,7 +66,7 @@ trait OrderRoutes extends JsonSupport {
             delete {
               onComplete((orderActor ? GetOrder(id.toInt)).mapTo[Order]) {
                 case ScalaSuccess(value) => {
-                  val orderFounded: Future[ActionPerformed] = (orderActor ? OrderDeleted(id.toInt)).mapTo[ActionPerformed]
+                  val orderFounded: Future[ActionPerformed] = (orderActor ? OrderDeleted(value)).mapTo[ActionPerformed]
                   onSuccess(orderFounded) { performed =>
                     log.info("Order n° {} deleted : {}", value.id, performed.description)
                     complete(StatusCodes.OK, performed)
@@ -101,6 +102,23 @@ trait OrderRoutes extends JsonSupport {
               }
               case ScalaFailure(value) => {
                 log.info("Order n° {} wasn't founded. Operation aborted", id)
+                complete(StatusCodes.NotFound)
+              }
+            }
+          }
+        },
+        path(Segment / "restore") { id =>
+          get {
+            onComplete((orderActor ? GetOrder(id.toInt)).mapTo[Order]) {
+              case ScalaSuccess(value) => {
+                val orderFounded: Future[ActionPerformed] = (orderActor ? OrderRestored(value)).mapTo[ActionPerformed]
+                onSuccess(orderFounded) { performed =>
+                  log.info("Order n° {} restored : {}", value.id, performed.description)
+                  complete(StatusCodes.OK, performed)
+                }
+              }
+              case ScalaFailure(value) => {
+                log.info("Order n° {} wasn't founded.", id)
                 complete(StatusCodes.NotFound)
               }
             }

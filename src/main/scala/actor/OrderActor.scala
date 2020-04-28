@@ -1,24 +1,13 @@
 package actor
 
-import akka.actor.Status.{Failure, Success}
 import akka.actor.{Actor, ActorLogging, Props, Status}
-import javafx.css.ParsedValue
-import org.mongodb.scala.bson.annotations.BsonProperty
 import service.DatabaseService
 import spray.json.enrichAny
 import util.JsonSupport
 
-import scala.concurrent.Future
-
 final case class Order(id: Int, shippingDate: String, destinationAddress: String, customerName: String, status: String)
-final case  class OrderStatus(id: Int, description: String)
+final case class OrderStatus(id: Int, description: String)
 final case class Orders(orders: Seq[Order])
-//final case class OrderStatus(value: String)
-
-/*
-final case class TransferUpdateEvent(transfer: Order, newStatus: OrderStatus)
-final case class TransferDeleteEvent(transfer: Order)
- */
 
 object OrderActor {
   final case class ActionPerformed(description: String)
@@ -27,7 +16,8 @@ object OrderActor {
   final case class OrderSetToPrepared(order: Order)
   final case class GetOrder(id: Int)
   final case class OrderStatusUpdatedToNextStep(order: Order)
-  final case class OrderDeleted(id: Int)
+  final case class OrderDeleted(order: Order)
+  final case class OrderRestored(order: Order)
 
   def props: Props = Props[OrderActor]
 }
@@ -41,6 +31,11 @@ class OrderActor extends Actor with ActorLogging with JsonSupport {
     sender() ! Status.Failure(reason)
   }
 
+  def displayingStatus(order: Order): Order = {
+    val stringDescription = DatabaseService.getOrderStatus(Integer.parseInt(order.status)).description
+    order.copy(status = stringDescription)
+  }
+
   def receive: Receive = {
 
     case GetOrders =>
@@ -48,9 +43,7 @@ class OrderActor extends Actor with ActorLogging with JsonSupport {
 
     case GetOrder(id) => {
       val orderInit = DatabaseService.getOrderByID(id)
-      val stringDescription = DatabaseService.getOrderStatus(Integer.parseInt(orderInit.status)).description
-      val orderParsed = orderInit.copy(status = stringDescription)
-      sender() ! orderParsed
+      sender() ! orderInit
     }
 
     case OrderSetToPrepared(order) =>
@@ -62,12 +55,17 @@ class OrderActor extends Actor with ActorLogging with JsonSupport {
       sender() ! ActionPerformed(s"Order ${order.id} created.")
 
     case OrderStatusUpdatedToNextStep(order) =>
-      KafkaProducerService.publish("OrderStatusUpdatedToNextStep",order.toJson.prettyPrint)
-      sender() ! ActionPerformed(s"Order ${order.id} status updated to next step ${order.status}.")
+      val orderModifier = order.copy(status = (order.status.toInt + 1).toString)
+      KafkaProducerService.publish("OrderStatusUpdatedToNextStep",orderModifier.toJson.prettyPrint)
+      sender() ! ActionPerformed(s"Order ${order.id} status updated to next step n° ${orderModifier.status}.")
 
-    case OrderDeleted(id) =>
-      KafkaProducerService.publish("OrderDeleted",id.toString)
-      sender() ! ActionPerformed(s"Order $id deleted.")
+    case OrderDeleted(order) =>
+      KafkaProducerService.publish("OrderDeleted",order.toJson.prettyPrint)
+      sender() ! ActionPerformed(s"Order ${order.id} deleted.")
+
+    case OrderRestored(order) =>
+      KafkaProducerService.publish("OrderRestored",order.toJson.prettyPrint)
+      sender() ! ActionPerformed(s"Order ${order.id} restored.")
 
   }
 

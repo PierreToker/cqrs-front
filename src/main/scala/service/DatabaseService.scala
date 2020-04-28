@@ -7,7 +7,6 @@ import org.mongodb.scala._
 import org.mongodb.scala.bson.codecs.DEFAULT_CODEC_REGISTRY
 import org.mongodb.scala.bson.codecs.Macros._
 import org.mongodb.scala.model.Filters._
-import service.DatabaseService.codecRegistry
 import util.Helpers._
 
 object DatabaseService {
