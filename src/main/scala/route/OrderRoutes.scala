@@ -43,7 +43,7 @@ trait OrderRoutes extends JsonSupport {
                   val orderCreated: Future[ActionPerformed] = (orderActor ? OrderCreated(order)).mapTo[ActionPerformed]
                   onSuccess(orderCreated) { performed =>
                     log.info("Order created [{}]: {}", order.id, performed.description)
-                    complete((StatusCodes.Created, performed))
+                    complete(StatusCodes.Created, performed)
                   }
               }
             }
@@ -52,14 +52,23 @@ trait OrderRoutes extends JsonSupport {
         path(Segment) { id =>
           concat(
             get {
-              onComplete((orderActor ? GetOrder(id.toInt)).mapTo[Order]) {
+              onComplete(orderActor ? GetOrder(id.toInt)) {
                 case ScalaSuccess(value) => {
-                  log.info("Order n° {} founded.", value.id)
-                  complete(StatusCodes.OK, value)
+                  value match {
+                    case _: Order => {
+                      val orderFounded = value.asInstanceOf[Order]
+                      log.info("Order n° {} founded.", orderFounded.id)
+                      complete(StatusCodes.OK, orderFounded)
+                    }
+                    case None => {
+                      log.info("Order n° {} wasn't founded.", id)
+                      complete(StatusCodes.NotFound)
+                    }
+                  }
                 }
                 case ScalaFailure(value) => {
-                  log.info("Order n° {} wasn't founded.", id)
-                  complete(StatusCodes.NotFound)
+                  log.info("An error has occurred during processing of the order N° {}", id)
+                  complete(StatusCodes.InternalServerError, value)
                 }
               }
             },

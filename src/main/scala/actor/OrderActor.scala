@@ -1,9 +1,16 @@
 package actor
 
 import akka.actor.{Actor, ActorLogging, Props, Status}
+import org.mongodb.scala.model.Filters.equal
 import service.DatabaseService
+import service.DatabaseService.collection
 import spray.json.enrichAny
 import util.JsonSupport
+
+import scala.concurrent._
+import ExecutionContext.Implicits.global
+import scala.concurrent.Future
+import scala.util.{Failure, Success}
 
 final case class Order(id: Int, shippingDate: String, destinationAddress: String, customerName: String, status: String)
 final case class OrderStatus(id: Int, description: String)
@@ -37,13 +44,14 @@ class OrderActor extends Actor with ActorLogging with JsonSupport {
   }
 
   def receive: Receive = {
-
     case GetOrders =>
       sender() ! DatabaseService.getAllTransfers
 
     case GetOrder(id) => {
-      val orderInit = DatabaseService.getOrderByID(id)
-      sender() ! orderInit
+      DatabaseService.getOrderByID(id) match {
+        case orderFounded:Order => sender() ! orderFounded
+        case _ => sender() ! None
+      }
     }
 
     case OrderSetToPrepared(order) =>
@@ -66,7 +74,6 @@ class OrderActor extends Actor with ActorLogging with JsonSupport {
     case OrderRestored(order) =>
       KafkaProducerService.publish("OrderRestored",order.toJson.prettyPrint)
       sender() ! ActionPerformed(s"Order ${order.id} restored.")
-
   }
 
 }
