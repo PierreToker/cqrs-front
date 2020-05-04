@@ -22,6 +22,7 @@ object DatabaseService {
    */
   def getAllTransfers: Seq[Order] = {
     collection.find().results()
+   // collection.find(gt("id",0)).results()
   }
 
   /**

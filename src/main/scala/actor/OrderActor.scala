@@ -1,16 +1,11 @@
 package actor
 
 import akka.actor.{Actor, ActorLogging, Props, Status}
-import org.mongodb.scala.model.Filters.equal
 import service.DatabaseService
-import service.DatabaseService.collection
 import spray.json.enrichAny
 import util.JsonSupport
-
 import scala.concurrent._
 import ExecutionContext.Implicits.global
-import scala.concurrent.Future
-import scala.util.{Failure, Success}
 
 final case class Order(id: Int, shippingDate: String, destinationAddress: String, customerName: String, status: String)
 final case class OrderStatus(id: Int, description: String)

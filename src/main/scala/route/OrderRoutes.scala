@@ -93,7 +93,7 @@ trait OrderRoutes extends JsonSupport {
                   val orderStatusUpdated: Future[ActionPerformed] = (orderActor ? OrderSetToPrepared(orderInput)).mapTo[ActionPerformed]
                   onSuccess(orderStatusUpdated) { performed =>
                     log.info("Order status updated [{}]: {}", orderInput.id, performed.description)
-                    complete((StatusCodes.Created, performed))
+                    complete((StatusCodes.OK, performed))
                   }
               }
             }
