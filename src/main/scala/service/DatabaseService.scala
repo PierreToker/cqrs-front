@@ -55,6 +55,19 @@ object DatabaseService {
   }
 
   /**
+   *
+   * @param statusDescription
+   * @return
+   */
+  def getStatusIdFromDescription(statusDescription: String): Int = {
+    val codecRegistry: CodecRegistry = fromRegistries(fromProviders(classOf[OrderStatus]), DEFAULT_CODEC_REGISTRY)
+    val database: MongoDatabase = mongoClient.getDatabase("orders-db").withCodecRegistry(codecRegistry)
+    val collection: MongoCollection[OrderStatus] = database.getCollection("orderStatus")
+    println(s"Status description wished: " + statusDescription)
+    collection.find(equal("description", statusDescription)).headResult().id
+  }
+
+  /**
    * Return orderStatus
    * @param status Status wished
    * @return orderStatus object
