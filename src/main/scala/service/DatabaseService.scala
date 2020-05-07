@@ -16,13 +16,17 @@ object DatabaseService {
   val database: MongoDatabase = mongoClient.getDatabase("orders-db").withCodecRegistry(codecRegistry)
   val collection: MongoCollection[Order] = database.getCollection("orders")
 
+  //For orderStatus codec
+  val codecRegistryOrderStatus: CodecRegistry = fromRegistries(fromProviders(classOf[OrderStatus]), DEFAULT_CODEC_REGISTRY)
+  val db: MongoDatabase = mongoClient.getDatabase("orders-db").withCodecRegistry(codecRegistryOrderStatus)
+  val collectionOrderStatus: MongoCollection[OrderStatus] = db.getCollection("orderStatus")
+
   /**
    * Get all orders
    * @return all orders
    */
   def getAllTransfers: Seq[Order] = {
     collection.find().results()
-   // collection.find(gt("id",0)).results()
   }
 
   /**
@@ -55,16 +59,12 @@ object DatabaseService {
   }
 
   /**
-   *
+   * Return status id from description
    * @param statusDescription
-   * @return
+   * @return Id of status
    */
   def getStatusIdFromDescription(statusDescription: String): Int = {
-    val codecRegistry: CodecRegistry = fromRegistries(fromProviders(classOf[OrderStatus]), DEFAULT_CODEC_REGISTRY)
-    val database: MongoDatabase = mongoClient.getDatabase("orders-db").withCodecRegistry(codecRegistry)
-    val collection: MongoCollection[OrderStatus] = database.getCollection("orderStatus")
-    println(s"Status description wished: " + statusDescription)
-    collection.find(equal("description", statusDescription)).headResult().id
+    collectionOrderStatus.find(equal("description", statusDescription)).headResult().id
   }
 
   /**
@@ -73,9 +73,6 @@ object DatabaseService {
    * @return orderStatus object
    */
   def getOrderStatus(status: Int): OrderStatus = {
-    val codecRegistry: CodecRegistry = fromRegistries(fromProviders(classOf[OrderStatus]), DEFAULT_CODEC_REGISTRY)
-    val database: MongoDatabase = mongoClient.getDatabase("orders-db").withCodecRegistry(codecRegistry)
-    val collection: MongoCollection[OrderStatus] = database.getCollection("orderStatus")
-    collection.find(equal("id", status)).headResult()
+    collectionOrderStatus.find(equal("id", status)).headResult()
   }
 }

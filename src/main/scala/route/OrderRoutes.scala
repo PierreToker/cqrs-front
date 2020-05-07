@@ -14,7 +14,6 @@ import akka.pattern.ask
 import akka.util.Timeout
 import actor.OrderActor._
 import actor.Order
-import service.DatabaseService
 import util.JsonSupport
 
 import scala.util.{Failure => ScalaFailure, Success => ScalaSuccess}
@@ -39,7 +38,7 @@ trait OrderRoutes extends JsonSupport {
             post {
               entity(as[Order]) {
                 createdOrder =>
-                  val order = Order(None, LocalDateTime.now().toString, createdOrder.destinationAddress, createdOrder.customerName, Some("0"))
+                  val order:Order = Order(None, LocalDateTime.now().toString, createdOrder.destinationAddress, createdOrder.customerName, Some("0"))
                   val orderCreated: Future[ActionPerformed] = (orderActor ? OrderCreated(order)).mapTo[ActionPerformed]
                   onSuccess(orderCreated) { performed =>
                     log.info("Order created")
@@ -55,13 +54,6 @@ trait OrderRoutes extends JsonSupport {
               onComplete(orderActor ? GetOrder(id.toInt)) {
                 case ScalaSuccess(value) => {
                   value match {
-                      /*
-                    case _: Order => {
-                      val orderFounded = value.asInstanceOf[Order]
-                      log.info("Order n° {} founded.", orderFounded.id)
-                      complete(StatusCodes.OK, orderFounded)
-                    }
-                       */
                     case _:Some[Order] => {
                       val orderFounded:Option[Order] = value.asInstanceOf[Some[Order]]
                       log.info("Order n° {} founded.", orderFounded.get.id)
@@ -119,16 +111,6 @@ trait OrderRoutes extends JsonSupport {
                       complete(StatusCodes.OK, performed)
                     }
                   }
-                    /* without some(status)
-                  case _: Order => {
-                    val orderFounded: Future[ActionPerformed] = (orderActor ? OrderStatusUpdatedToNextStep(value.asInstanceOf[Order])).mapTo[ActionPerformed]
-                    onSuccess(orderFounded) { performed =>
-                      log.info("Order n° {} status updated : {}", id, performed.description)
-                      complete(StatusCodes.OK, performed)
-                    }
-                  }
-
-                     */
                   case None => {
                     log.info("Order n° {} wasn't founded. Operation aborted", id)
                     complete(StatusCodes.NotFound)
@@ -149,23 +131,6 @@ trait OrderRoutes extends JsonSupport {
               log.info("Order n° {} restored : {}", id, performed.description)
               complete(StatusCodes.OK, performed)
             }
-
-                /*
-            onComplete((orderActor ? GetOrder(id.toInt)).mapTo[Order]) {
-              case ScalaSuccess(value) => {
-                val orderFounded: Future[ActionPerformed] = (orderActor ? OrderRestored(value)).mapTo[ActionPerformed]
-                onSuccess(orderFounded) { performed =>
-                  log.info("Order n° {} restored : {}", value.id, performed.description)
-                  complete(StatusCodes.OK, performed)
-                }
-              }
-              case ScalaFailure(value) => {
-                log.info("Order n° {} wasn't founded.", id)
-                complete(StatusCodes.NotFound)
-              }
-            }
-
-                 */
           }
         }
       )

@@ -36,10 +36,20 @@ class OrderActor extends Actor with ActorLogging with JsonSupport {
   }
 
   def displayingStatus(order: Order): Option[Order] = {
+    val orderStatus:OrderStatus = DatabaseService.getOrderStatus(order.status.getOrElse(0).asInstanceOf[String].toInt)
+    orderStatus match {
+      case _:OrderStatus => {
+        Some(order.copy(status = Some(orderStatus.description)))
+      }
+      case _ => None
+    }
+
+    /*
     DatabaseService.getOrderStatus(order.status.getOrElse(0).asInstanceOf[String].toInt).description match {
       case result:String => Some(order.copy(status = Some(result)))
       case _ => None
     }
+     */
     /* Without Some(Status) version
     DatabaseService.getOrderStatus(Integer.parseInt(order.status)).description match {
       case result:String => Some(order.copy(status = result))
@@ -74,10 +84,15 @@ class OrderActor extends Actor with ActorLogging with JsonSupport {
 
     case OrderStatusUpdatedToNextStep(order) => {
       val statusId:Int = DatabaseService.getStatusIdFromDescription(order.status.getOrElse(0).toString)
-      val newOrderStatus:Int = DatabaseService.getOrderStatus(statusId + 1).id
-      val orderModifier = order.copy(status = Some(newOrderStatus.toString()))
-      KafkaProducerService.publish("OrderStatusUpdatedToNextStep", orderModifier.toJson.prettyPrint)
-      sender() ! ActionPerformed(s"Order ${order.id} status updated to next step n° ${orderModifier.status}.")
+      val newOrderStatus:OrderStatus = DatabaseService.getOrderStatus(statusId + 1)
+      newOrderStatus match {
+        case _:OrderStatus => {
+          val orderModifier:Order = order.copy(status = Some(newOrderStatus.id.toString))
+          KafkaProducerService.publish("OrderStatusUpdatedToNextStep", orderModifier.toJson.prettyPrint)
+          sender() ! ActionPerformed(s"Order ${order.id} status updated to next step n° ${orderModifier.status}.")
+        }
+        case _ => sender() ! ActionPerformed("This order cannot increased his status.")
+      }
     }
 
     case OrderDeleted(order) =>
