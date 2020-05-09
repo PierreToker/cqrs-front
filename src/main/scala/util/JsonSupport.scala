@@ -10,12 +10,6 @@ trait JsonSupport extends SprayJsonSupport {
 
   implicit val orderJsonFormat: RootJsonFormat[Order] = jsonFormat5(Order)
   implicit val ordersJsonFormat: RootJsonFormat[Orders] = jsonFormat1(Orders)
-  //implicit val transferStatusJsonFormat: RootJsonFormat[OrderStatus] = jsonFormat1(OrderStatus)
-
-  /*
-  implicit val transferUpdateJsonFormat: RootJsonFormat[TransferUpdateEvent] = jsonFormat2(TransferUpdateEvent)
-  implicit val transferDeleteJsonFormat: RootJsonFormat[TransferDeleteEvent] = jsonFormat1(TransferDeleteEvent)
-*/
   implicit val actionPerformedJsonFormat: RootJsonFormat[ActionPerformed] = jsonFormat1(ActionPerformed)
 
 }

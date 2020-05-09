@@ -7,7 +7,6 @@ import org.mongodb.scala._
 import org.mongodb.scala.bson.codecs.DEFAULT_CODEC_REGISTRY
 import org.mongodb.scala.bson.codecs.Macros._
 import org.mongodb.scala.model.Filters._
-import service.DatabaseService.codecRegistry
 import util.Helpers._
 
 object DatabaseService {
@@ -16,6 +15,11 @@ object DatabaseService {
   val codecRegistry: CodecRegistry = fromRegistries(fromProviders(classOf[Order]), DEFAULT_CODEC_REGISTRY)
   val database: MongoDatabase = mongoClient.getDatabase("orders-db").withCodecRegistry(codecRegistry)
   val collection: MongoCollection[Order] = database.getCollection("orders")
+
+  //For orderStatus codec
+  val codecRegistryOrderStatus: CodecRegistry = fromRegistries(fromProviders(classOf[OrderStatus]), DEFAULT_CODEC_REGISTRY)
+  val db: MongoDatabase = mongoClient.getDatabase("orders-db").withCodecRegistry(codecRegistryOrderStatus)
+  val collectionOrderStatus: MongoCollection[OrderStatus] = db.getCollection("orderStatus")
 
   /**
    * Get all orders
@@ -55,14 +59,20 @@ object DatabaseService {
   }
 
   /**
+   * Return status id from description
+   * @param statusDescription
+   * @return Id of status
+   */
+  def getStatusIdFromDescription(statusDescription: String): Int = {
+    collectionOrderStatus.find(equal("description", statusDescription)).headResult().id
+  }
+
+  /**
    * Return orderStatus
    * @param status Status wished
    * @return orderStatus object
    */
   def getOrderStatus(status: Int): OrderStatus = {
-    val codecRegistry: CodecRegistry = fromRegistries(fromProviders(classOf[OrderStatus]), DEFAULT_CODEC_REGISTRY)
-    val database: MongoDatabase = mongoClient.getDatabase("orders-db").withCodecRegistry(codecRegistry)
-    val collection: MongoCollection[OrderStatus] = database.getCollection("orderStatus")
-    collection.find(equal("id", status)).headResult()
+    collectionOrderStatus.find(equal("id", status)).headResult()
   }
 }
